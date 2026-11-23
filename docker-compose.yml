@@ -1,0 +1,86 @@
+version: '3.9'
+
+services:
+  orchestrator:
+    build: ./orchestrator
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - JWT_SECRET=dev_secret_change_in_prod
+      - IMAGE_AGENT_URL=http://image-agent:8001
+      - DIAGNOSTIC_AGENT_URL=http://diagnostic-agent:8002
+      - SYMPTOM_AGENT_URL=http://symptom-agent:8003
+      - CORRELATION_AGENT_URL=http://correlation-agent:8004
+      - REPORT_AGENT_URL=http://report-agent:8005
+      - UPLOAD_DIR=/app/uploads
+    volumes:
+      - uploads:/app/uploads
+      - images:/tmp/pneumonia_images
+    depends_on:
+      - image-agent
+      - diagnostic-agent
+      - symptom-agent
+      - correlation-agent
+      - report-agent
+
+  image-agent:
+    build:
+      context: ./agents
+      dockerfile: image_ingestion/Dockerfile
+    ports:
+      - "8001:8001"
+    environment:
+      - PORT=8001
+      - SAVE_DIR=/tmp/pneumonia_images
+      - SKIP_QUALITY_CHECK=true
+    volumes:
+      - images:/tmp/pneumonia_images
+
+  diagnostic-agent:
+    build:
+      context: ./agents
+      dockerfile: diagnostic/Dockerfile
+    ports:
+      - "8002:8002"
+    environment:
+      - PORT=8002
+      - MODEL_DIR=/app/models
+    volumes:
+      - images:/tmp/pneumonia_images
+      - ./agents/diagnostic/models:/app/models:ro
+
+  symptom-agent:
+    build:
+      context: ./agents
+      dockerfile: symptom_analysis/Dockerfile
+    ports:
+      - "8003:8003"
+    environment:
+      - PORT=8003
+
+  correlation-agent:
+    build:
+      context: ./agents
+      dockerfile: correlation/Dockerfile
+    ports:
+      - "8004:8004"
+    environment:
+      - PORT=8004
+
+  report-agent:
+    build:
+      context: ./agents
+      dockerfile: report/Dockerfile
+    ports:
+      - "8005:8005"
+    environment:
+      - PORT=8005
+      - REPORT_DIR=/tmp/pneumonia_reports
+    volumes:
+      - reports:/tmp/pneumonia_reports
+
+volumes:
+  uploads:
+  images:
+  reports:
